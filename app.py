@@ -1,18 +1,19 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
 # Carica i dati
 df = pd.read_excel('data/R.E.P.xlsx', sheet_name='DATI', engine='openpyxl', header=3)
 df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
-# Seleziona colonne chiave
-columns = [
-    'Nome Breve', 'OWNER', 'PM', 'Importo SIL Mensile Effettivo',
-    'Importo SIL Cumulato effettivo', '% Avanz. Economico Effettivo',
-    'Delta % Avanzamento ', 'RITARDO TOTALE CLB - CP', 'NOTE'
+# Campi obbligatori
+obbligatorie = [
+    "Nome Breve", "OWNER", "PM", "Appalto", "Tipologia",
+    "Importo contrattuale (al netto di progettazione, sicurezza) aggiornato all'ultimo atto ufficiale"
 ]
-dashboard_df = df[columns].copy()
+
+# Campi facoltativi (formule, ipotesi, note)
+formula_keywords = ["Delta", "Avanz.", "%", "Ritardo", "Durata", "Importo SIL", "Fine Lavori", "Attivazione"]
+facoltative = [col for col in df.columns if any(k in col for k in formula_keywords) or "NOTE" in col or "previsione" in col]
 
 st.set_page_config(page_title="Monitoraggio Progetti", layout="wide")
 st.title("📊 Dashboard Monitoraggio Progetti")
@@ -21,46 +22,47 @@ st.title("📊 Dashboard Monitoraggio Progetti")
 utente = st.text_input("🔐 Inserisci il tuo nome utente")
 
 if utente:
-    filtered_df = dashboard_df[dashboard_df['OWNER'] == utente]
+    filtered_df = df[df['OWNER'] == utente]
     st.subheader(f"Progetti associati a: {utente}")
     st.dataframe(filtered_df)
 
-    # Grafico avanzamento economico
-    if not filtered_df.empty:
-        fig = px.bar(
-            filtered_df,
-            x='Nome Breve',
-            y='% Avanz. Economico Effettivo',
-            title="Avanzamento Economico Effettivo",
-            text='% Avanz. Economico Effettivo'
-        )
-        st.plotly_chart(fig)
+    st.markdown("---")
+    st.subheader("➕ Inserisci nuovo progetto")
 
-    # Form per aggiungere/modificare progetto
-    st.subheader("➕ Aggiungi o modifica un progetto")
-    with st.form("form_progetto"):
-        nome_breve = st.text_input("Nome Breve")
-        pm = st.text_input("PM")
-        sil_mensile = st.number_input("Importo SIL Mensile Effettivo", value=0.0)
-        sil_cumulato = st.number_input("Importo SIL Cumulato effettivo", value=0.0)
-        avanzamento = st.number_input("% Avanz. Economico Effettivo", value=0.0)
-        delta = st.number_input("Delta % Avanzamento", value=0.0)
-        ritardo = st.number_input("RITARDO TOTALE CLB - CP", value=0.0)
-        nota = st.text_area("NOTE")
-        submitted = st.form_submit_button("💾 Salva progetto")
+    mostra_form = st.checkbox("Mostra campi da compilare")
 
-        if submitted:
-            nuova_riga = {
-                'Nome Breve': nome_breve,
-                'OWNER': utente,
-                'PM': pm,
-                'Importo SIL Mensile Effettivo': sil_mensile,
-                'Importo SIL Cumulato effettivo': sil_cumulato,
-                '% Avanz. Economico Effettivo': avanzamento,
-                'Delta % Avanzamento ': delta,
-                'RITARDO TOTALE CLB - CP': ritardo,
-                'NOTE': nota
-            }
-            dashboard_df = pd.concat([dashboard_df, pd.DataFrame([nuova_riga])], ignore_index=True)
-            st.success("✅ Progetto salvato correttamente!")
-            st.dataframe(dashboard_df[dashboard_df['OWNER'] == utente])
+    if mostra_form:
+        with st.form("form_nuovo_progetto"):
+            nuovo = {}
+            st.markdown("### Campi obbligatori")
+            for campo in obbligatorie:
+                nuovo[campo] = st.text_input(f"{campo}")
+
+            st.markdown("### Campi facoltativi")
+            for campo in facoltative:
+                nuovo[campo] = st.text_input(f"{campo}")
+
+            submitted = st.form_submit_button("💾 Salva nuovo progetto")
+            if submitted:
+                df = pd.concat([df, pd.DataFrame([nuovo])], ignore_index=True)
+                st.success("✅ Nuovo progetto salvato!")
+
+    st.markdown("---")
+    st.subheader("🛠️ Modifica progetto esistente")
+
+    appalti = filtered_df['Nome Breve'].dropna().unique().tolist()
+    selected = st.selectbox("Seleziona un progetto da modificare", appalti)
+
+    if selected:
+        progetto = filtered_df[filtered_df['Nome Breve'] == selected].iloc[0]
+        with st.form("form_modifica"):
+            modifiche = {}
+            for campo in obbligatorie + facoltative:
+                valore = progetto.get(campo, "")
+                modifiche[campo] = st.text_input(f"{campo}", value=str(valore))
+            submitted = st.form_submit_button("🔄 Aggiorna progetto")
+            if submitted:
+                idx = df[(df['OWNER'] == utente) & (df['Nome Breve'] == selected)].index[0]
+                for k, v in modifiche.items():
+                    df.at[idx, k] = v
+                st.success("✅ Progetto aggiornato!")
