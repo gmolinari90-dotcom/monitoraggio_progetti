@@ -11,18 +11,18 @@ obbligatorie = [
     "Importo contrattuale (al netto di progettazione, sicurezza) aggiornato all'ultimo atto ufficiale"
 ]
 
-# Campi facoltativi
-formula_keywords = ["Delta", "Avanz.", "%", "Ritardo", "Durata", "Importo SIL", "Fine Lavori", "Attivazione"]
-facoltative = [col for col in df.columns if any(k in col for k in formula_keywords) or "NOTE" in col or "previsione" in col]
+# Campi facoltativi (formule, ipotesi, note, campi con €)
+formula_keywords = ["Delta", "Avanz.", "%", "Ritardo", "Durata", "Fine Lavori", "Attivazione"]
+facoltative = [col for col in df.columns if any(k in col for k in formula_keywords) or "NOTE" in col or "previsione" in col or "€" in col or "Importo" in col or "mln" in col]
 
-st.set_page_config(page_title='Monitoraggio Progetti', layout='wide')
+st.set_page_config(page_title="Monitoraggio Progetti", layout="wide")
 st.title("📊 Dashboard Monitoraggio Progetti")
 
 # Login utente
-utente = st.text_input("🔐 Inserisci il tuo nome utente").strip().upper()
+utente = st.text_input("🔐 Inserisci il tuo nome utente")
 
 if utente:
-    filtered_df = df[df['OWNER'].astype(str).str.upper() == utente]
+    filtered_df = df[df['OWNER'] == utente]
     st.subheader(f"Progetti associati a: {utente}")
     st.dataframe(filtered_df)
 
@@ -62,7 +62,8 @@ if utente:
                 modifiche[campo] = st.text_input(f"{campo}", value=str(valore))
             submitted = st.form_submit_button("🔄 Aggiorna progetto")
             if submitted:
-                idx = df[(df['OWNER'].astype(str).str.upper() == utente) & (df['Nome Breve'] == selected)].index[0]
+                idx = df[(df['OWNER'] == utente) & (df['Nome Breve'] == selected)].index[0]
                 for k, v in modifiche.items():
                     df.at[idx, k] = v
                 st.success("✅ Progetto aggiornato!")
+``
