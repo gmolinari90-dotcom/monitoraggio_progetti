@@ -66,4 +66,3 @@ if utente:
                 for k, v in modifiche.items():
                     df.at[idx, k] = v
                 st.success("✅ Progetto aggiornato!")
-``
