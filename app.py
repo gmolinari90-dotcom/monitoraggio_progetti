@@ -1,5 +1,10 @@
 import streamlit as st
 import pandas as pd
+from PIL import Image
+
+# Carica il logo
+logo = Image.open("assets/logo.png")
+st.image(logo, width=150)
 
 # Carica i dati
 df = pd.read_excel('data/R.E.P.xlsx', sheet_name='DATI', engine='openpyxl', header=3)
@@ -11,7 +16,7 @@ obbligatorie = [
     "Importo contrattuale (al netto di progettazione, sicurezza) aggiornato all'ultimo atto ufficiale"
 ]
 
-# Campi facoltativi (formule, ipotesi, note, campi con €)
+# Campi facoltativi
 formula_keywords = ["Delta", "Avanz.", "%", "Ritardo", "Durata", "Fine Lavori", "Attivazione"]
 facoltative = [col for col in df.columns if any(k in col for k in formula_keywords) or "NOTE" in col or "previsione" in col or "€" in col or "Importo" in col or "mln" in col]
 
@@ -35,12 +40,12 @@ if utente:
         with st.form("form_nuovo_progetto"):
             nuovo = {}
             st.markdown("### Campi obbligatori")
-            for campo in obbligatorie:
-                nuovo[campo] = st.text_input(f"{campo}")
+            for i, campo in enumerate(obbligatorie):
+                nuovo[campo] = st.text_input(f"{campo}", key=f"new_{i}")
 
             st.markdown("### Campi facoltativi")
-            for campo in facoltative:
-                nuovo[campo] = st.text_input(f"{campo}")
+            for j, campo in enumerate(facoltative):
+                nuovo[campo] = st.text_input(f"{campo}", key=f"new_f_{j}")
 
             submitted = st.form_submit_button("💾 Salva nuovo progetto")
             if submitted:
@@ -57,9 +62,9 @@ if utente:
         progetto = filtered_df[filtered_df['Nome Breve'] == selected].iloc[0]
         with st.form("form_modifica"):
             modifiche = {}
-            for campo in obbligatorie + facoltative:
+            for k, campo in enumerate(obbligatorie + facoltative):
                 valore = progetto.get(campo, "")
-                modifiche[campo] = st.text_input(f"{campo}", value=str(valore))
+                modifiche[campo] = st.text_input(f"{campo}", value=str(valore), key=f"mod_{k}")
             submitted = st.form_submit_button("🔄 Aggiorna progetto")
             if submitted:
                 idx = df[(df['OWNER'] == utente) & (df['Nome Breve'] == selected)].index[0]
