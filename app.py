@@ -4,8 +4,6 @@ import pandas as pd
 from PIL import Image
 import plotly.express as px
 
-from config_streamlit import obbligatorie, facoltative, accessi_utenti
-
 st.set_page_config(page_title='Dashboard Monitoraggio Progetti', layout='wide')
 st.title('📊 DASHBOARD MONITORAGGIO PROGETTI')
 
@@ -19,17 +17,38 @@ except:
 # Login utente
 utente = st.text_input("🔐 Inserisci il tuo nome utente").upper()
 
+# Accessi
+accessi_utenti = {
+    "MOLINARI": ["GESTIONALE", "RIEPILOGO", "ANALISI DEI DATI"],
+    "BARBATO": ["RIEPILOGO"],
+    "ANGRISANO": ["GESTIONALE", "ANALISI DEI DATI"]
+}
+
 if utente:
     sezioni = accessi_utenti.get(utente, [])
     if not sezioni:
         st.warning("Utente non autorizzato.")
     else:
-        st.markdown("---")
-        scelta = st.radio("📁 Seleziona sezione", sezioni)
-
         # Carica dati
         df = pd.read_excel('data/R.E.P.xlsx', sheet_name='DATI', engine='openpyxl', header=3)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+        obbligatorie = [
+            "Nome Breve", "OWNER", "PM", "Appalto", "Tipologia",
+            "Importo contrattuale (al netto di progettazione, sicurezza) aggiornato all'ultimo atto ufficiale"
+        ]
+        formula_keywords = ["Delta", "Avanz.", "%", "Ritardo", "Durata", "Fine Lavori", "Attivazione"]
+        euro_columns = [col for col in df.columns if "€" in col or "Importo" in col or "mln" in col]
+        facoltative = [col for col in df.columns if any(k in col for k in formula_keywords) or "NOTE" in col or "previsione" in col or col in euro_columns]
+
+        # Visualizzazione schede come bottoni affiancati
+        st.markdown("### Seleziona sezione")
+        cols = st.columns(len(sezioni))
+        scelta = st.session_state.get("scelta", sezioni[0])
+        for i, sezione in enumerate(sezioni):
+            if cols[i].button(sezione):
+                st.session_state["scelta"] = sezione
+                scelta = sezione
 
         if scelta == "GESTIONALE":
             st.subheader("🛠️ GESTIONALE")
